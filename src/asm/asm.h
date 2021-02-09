@@ -16,6 +16,7 @@ typedef void (*FUNC0)(int64_t);
 typedef void (*FUNC1)(int64_t, int64_t);
 typedef void (*FUNC2)(int64_t, int64_t, int64_t);
 typedef void (*FUNC3)(int64_t, int64_t, int64_t, int64_t);
+typedef void (*FUNC4)(int64_t, int64_t, int64_t, int64_t, int64_t);
 
 template <typename T>
 class Context {
@@ -334,6 +335,32 @@ public:
             };
         };
     }
+    template <typename ParamT1, typename ParamT2, typename ParamT3, typename ParamT4, typename RetT, const char* str>
+    void regist_func(std::function<RetT(const ParamT1&, const ParamT2&, const ParamT3&, const ParamT4&)> fn) {
+        std::string new_key = std::string(str) + ":" + get_type_name<ParamT1>() + ":" + get_type_name<ParamT2>() + ":" +
+                              get_type_name<ParamT3>();
+        // 必须要用值捕获，否则fn会析构
+        func4map[new_key] = [=](AstNode& node) -> FUNC4 {
+            // ToDo: 判断类型是否正确
+            if (get_value_type(typeid(ParamT1)) != node.nodes[0]->value_type or
+                get_value_type(typeid(ParamT2)) != node.nodes[1]->value_type or
+                get_value_type(typeid(ParamT3)) != node.nodes[2]->value_type or
+                get_value_type(typeid(ParamT4)) != node.nodes[3]->value_type) {
+                return nullptr;
+            }
+            node.value_type = get_value_type(typeid(RetT));
+            static std::function<RetT(const ParamT1&, const ParamT2&, const ParamT3&, const ParamT4&)> func = fn;
+            return [](int64_t a, int64_t b, int64_t c, int64_t d, int64_t e) {
+                auto _a = (ParamT1*)a;
+                auto _b = (ParamT2*)b;
+                auto _c = (ParamT3*)c;
+                auto _d = (ParamT4*)d;
+                auto _e = (RetT*)e;
+                auto x = func(*_a, *_b, *_c, _*d);
+                *_d = x;
+            };
+        };
+    }
 
     std::shared_ptr<Context<T>> get(const std::string& exp) {
         logger.clear();
@@ -509,6 +536,48 @@ public:
                 n->setArg(1, arg2);
                 n->setArg(2, arg3);
                 n->setArg(3, arg4);
+            } else if (node.operator_type == kFUNC4) {
+                auto n0 = node.nodes[0];
+                auto n1 = node.nodes[1];
+                auto n2 = node.nodes[2];
+                auto n3 = node.nodes[3];
+                std::string func_name = node.result_varible + ":" + get_type_name(n0->value_type) + ":" +
+                                        get_type_name(n1->value_type) + ":" + get_type_name(n2->value_type)
+										+ ":" + get_type_name(n3->value_type);;
+                auto it = func4map.find(func_name);
+                if (it == func4map.end()) {
+                    logger << "[" << func_name << "]4 not exists. ";
+                    return false;  // 函数不存在
+                }
+                auto ptr = it->second(node);
+                if (ptr == nullptr) {
+                    logger << "[" << func_name << "] params type is wrong. ";
+                    return false;
+                }
+                asmjit::x86::Gp arg1 = cc.newUInt64("arg1");
+                cc.mov(arg1, n0->data_offset);
+                cc.add(arg1, n0->data_pointer);
+                asmjit::x86::Gp arg2 = cc.newUInt64("arg2");
+                cc.mov(arg2, n1->data_offset);
+                cc.add(arg2, n1->data_pointer);
+                asmjit::x86::Gp arg3 = cc.newUInt64("arg3");
+                cc.mov(arg3, n2->data_offset);
+                cc.add(arg3, n2->data_pointer);
+                asmjit::x86::Gp arg4 = cc.newUInt64("arg4");
+                cc.mov(arg4, node.data_offset);
+                cc.add(arg4, node.data_pointer);
+                asmjit::x86::Gp arg5 = cc.newUInt64("arg5");
+                cc.mov(arg5, node.data_offset);
+                cc.add(arg5, node.data_pointer);
+
+                asmjit::InvokeNode* n;
+                cc.invoke(&n, asmjit::imm((void*)ptr), asmjit::FuncSignatureT<void, int64_t, int64_t, int64_t, int64_t, int64_t>(
+                                                               asmjit::CallConv::kIdFastCall));
+                n->setArg(0, arg1);
+                n->setArg(1, arg2);
+                n->setArg(2, arg3);
+                n->setArg(3, arg4);
+                n->setArg(4, arg5);
             } else {
                 if (not load_instruction_op(node, cc, logger)) {
                     logger << "load instruction [" << node.operator_type << "] failed. ";
@@ -553,6 +622,7 @@ private:
     std::unordered_map<std::string, std::function<FUNC1(AstNode& node)>> func1map;
     std::unordered_map<std::string, std::function<FUNC2(AstNode& node)>> func2map;
     std::unordered_map<std::string, std::function<FUNC3(AstNode& node)>> func3map;
+    std::unordered_map<std::string, std::function<FUNC4(AstNode& node)>> func4map;
     std::unordered_map<std::string, Func> exps;
     std::unordered_map<std::string, std::vector<std::shared_ptr<Context<T>>>> exp_ctxs;
     asmjit::JitRuntime rt;
