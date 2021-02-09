@@ -356,7 +356,7 @@ public:
                 auto _c = (ParamT3*)c;
                 auto _d = (ParamT4*)d;
                 auto _e = (RetT*)e;
-                auto x = func(*_a, *_b, *_c, _*d);
+                auto x = func(*_a, *_b, *_c, *_d);
                 *_d = x;
             };
         };
