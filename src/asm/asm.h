@@ -625,9 +625,9 @@ private:
     std::unordered_map<std::string, std::function<FUNC4(AstNode& node)>> func4map;
     std::unordered_map<std::string, Func> exps;
     std::unordered_map<std::string, std::vector<std::shared_ptr<Context<T>>>> exp_ctxs;
-    asmjit::JitRuntime rt;
-    asmjit::CodeHolder code;
-    asmjit::StringLogger asm_logger;
+    thread_local asmjit::JitRuntime rt;
+    thread_local asmjit::CodeHolder code;
+    thread_local asmjit::StringLogger asm_logger;
     std::ostrstream logger;
     std::string _logger;
 };
