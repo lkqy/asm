@@ -625,11 +625,20 @@ private:
     std::unordered_map<std::string, std::function<FUNC4(AstNode& node)>> func4map;
     std::unordered_map<std::string, Func> exps;
     std::unordered_map<std::string, std::vector<std::shared_ptr<Context<T>>>> exp_ctxs;
-    thread_local asmjit::JitRuntime rt;
-    thread_local asmjit::CodeHolder code;
-    thread_local asmjit::StringLogger asm_logger;
+    thread_local static asmjit::JitRuntime rt;
+    thread_local static asmjit::CodeHolder code;
+    thread_local static asmjit::StringLogger asm_logger;
     std::ostrstream logger;
     std::string _logger;
 };
+
+
+template <typename T>
+thread_local static asmjit::JitRuntime Jit<T>::rt;
+template <typename T>
+thread_local static asmjit::CodeHolder Jit<T>::code;
+template <typename T>
+thread_local static asmjit::StringLogger Jit<T>::asm_logger;
+
 
 } // namespace asm
