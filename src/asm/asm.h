@@ -634,11 +634,11 @@ private:
 
 
 template <typename T>
-thread_local static asmjit::JitRuntime Jit<T>::rt;
+thread_local asmjit::JitRuntime Jit<T>::rt;
 template <typename T>
-thread_local static asmjit::CodeHolder Jit<T>::code;
+thread_local asmjit::CodeHolder Jit<T>::code;
 template <typename T>
-thread_local static asmjit::StringLogger Jit<T>::asm_logger;
+thread_local asmjit::StringLogger Jit<T>::asm_logger;
 
 
 } // namespace asm
